@@ -7,7 +7,7 @@ const API_URL = "https://balance-bot-api.onrender.com";
 async function getBalance(userID) {
   try {
     const res = await axios.get(`${API_URL}/api/balance/${userID}`);
-    return res.data.balance || 100;
+    return typeof res.data.balance === "number" ? res.data.balance : 100;
   } catch {
     return 100;
   }
@@ -33,9 +33,10 @@ async function loseGame(userID, amount) {
   }
 }
 
-// Format balance
+// ✅ Format balance (SAFE)
 function formatBalance(num) {
-  return num.toLocaleString("en-US") + " $";
+  const n = typeof num === "number" && !isNaN(num) ? num : 0;
+  return n.toLocaleString("en-US") + " $";
 }
 
 // Generate math
@@ -56,8 +57,8 @@ function generateMath() {
 module.exports = {
   config: {
     name: "math",
-    version: "1.0",
-    author: "MOHAMMAD AKASH",
+    version: "1.1",
+    author: "MOHAMMAD AKASH (Fixed by S AY EM)",
     role: 0,
     category: "economy",
     shortDescription: "Math Game (Reply Based)"
@@ -102,7 +103,7 @@ ${math.question} = ?
           api.unsendMessage(info.messageID).catch(() => {});
         }, 20000);
       },
-      messageID // ✅ reply to command
+      messageID
     );
   },
 
@@ -116,14 +117,25 @@ ${math.question} = ?
     await api.unsendMessage(Reply.messageID);
     global.GoatBot.onReply.delete(Reply.messageID);
 
+    // ✅ current balance fallback
+    const currentBalance = await getBalance(senderID);
+
     if (userAns === Reply.answer) {
-      const newBal = await winGame(senderID, 200);
+      let newBal = await winGame(senderID, 200);
+
+      // ✅ if API fails, show old balance
+      if (newBal === null) newBal = currentBalance;
+
       return api.sendMessage(
         `✅ Correct Answer!\n🎉 +200 $\n💳 Balance: ${formatBalance(newBal)}`,
         threadID
       );
     } else {
-      const newBal = await loseGame(senderID, 50);
+      let newBal = await loseGame(senderID, 50);
+
+      // ✅ if API fails, show old balance
+      if (newBal === null) newBal = currentBalance;
+
       return api.sendMessage(
         `❌ Wrong Answer!\nCorrect: ${Reply.answer}\n−50 $\n💳 Balance: ${formatBalance(newBal)}`,
         threadID
